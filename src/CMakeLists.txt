@@ -1,5 +1,5 @@
 add_executable(jsonschema_cli
-  main.cc configure.h.in command.h
+  main.cc configure.h.in command.h messages.h
   utils.h utils.cc
   command_fmt.cc
   command_frame.cc
@@ -12,7 +12,7 @@ add_executable(jsonschema_cli
   command_identify.cc
   command_canonicalize.cc
   command_encode.cc
-  command_decode.cc)
+  command_decode.cc messages.cc)
 
 noa_add_default_options(PRIVATE jsonschema_cli)
 set_target_properties(jsonschema_cli PROPERTIES OUTPUT_NAME jsonschema)

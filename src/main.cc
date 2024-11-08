@@ -8,9 +8,16 @@
 #include <string>      // std::string
 #include <string_view> // std::string_view
 #include <vector>      // std::vector
+#ifdef _WIN32
+#include <io.h>
+#define isatty _isatty
+#else
+#include <unistd.h>
+#endif
 
 #include "command.h"
 #include "configure.h"
+#include "messages.h"
 
 constexpr std::string_view USAGE_DETAILS{R"EOF(
 Global Options:
@@ -85,101 +92,157 @@ Commands:
 
 For more documentation, visit https://github.com/sourcemeta/jsonschema
 )EOF"};
+// Initialize color usage
+bool use_colors = true;
 
 auto jsonschema_main(const std::string &program, const std::string &command,
-                     const std::span<const std::string> &arguments) -> int {
-  if (command == "fmt") {
+                     const std::span<const std::string> &arguments) -> int
+{
+  if (command == "fmt")
+  {
     return sourcemeta::jsonschema::cli::fmt(arguments);
-  } else if (command == "frame") {
+  }
+  else if (command == "frame")
+  {
     return sourcemeta::jsonschema::cli::frame(arguments);
-  } else if (command == "bundle") {
+  }
+  else if (command == "bundle")
+  {
     return sourcemeta::jsonschema::cli::bundle(arguments);
-  } else if (command == "compile") {
+  }
+  else if (command == "compile")
+  {
     return sourcemeta::jsonschema::cli::compile(arguments);
-  } else if (command == "lint") {
+  }
+  else if (command == "lint")
+  {
     return sourcemeta::jsonschema::cli::lint(arguments);
-  } else if (command == "validate") {
+  }
+  else if (command == "validate")
+  {
     return sourcemeta::jsonschema::cli::validate(arguments);
-  } else if (command == "metaschema") {
+  }
+  else if (command == "metaschema")
+  {
     return sourcemeta::jsonschema::cli::metaschema(arguments);
-  } else if (command == "test") {
+  }
+  else if (command == "test")
+  {
     return sourcemeta::jsonschema::cli::test(arguments);
-  } else if (command == "identify") {
+  }
+  else if (command == "identify")
+  {
     return sourcemeta::jsonschema::cli::identify(arguments);
-  } else if (command == "canonicalize") {
+  }
+  else if (command == "canonicalize")
+  {
     return sourcemeta::jsonschema::cli::canonicalize(arguments);
-  } else if (command == "encode") {
+  }
+  else if (command == "encode")
+  {
     return sourcemeta::jsonschema::cli::encode(arguments);
-  } else if (command == "decode") {
+  }
+  else if (command == "decode")
+  {
     return sourcemeta::jsonschema::cli::decode(arguments);
-  } else {
-    std::cout << "JSON Schema CLI - v"
-              << sourcemeta::jsonschema::cli::PROJECT_VERSION << "\n";
-    std::cout << "Usage: " << std::filesystem::path{program}.filename().string()
-              << " <command> [arguments...]\n";
-    std::cout << USAGE_DETAILS;
+  }
+  else
+  {
+    print_success(std::string("JSON Schema CLI - v") + std::string(sourcemeta::jsonschema::cli::PROJECT_VERSION));
+
+    print_success("Usage: " + std::filesystem::path{program}.filename().string() + " <command> [arguments...]");
+
+    print_success(std::string(USAGE_DETAILS));
+
     return EXIT_SUCCESS;
   }
 }
 
-auto main(int argc, char *argv[]) noexcept -> int {
-  try {
+auto main(int argc, char *argv[]) noexcept -> int
+{
+  try
+  {
     const std::string program{argv[0]};
     const std::string command{argc > 1 ? argv[1] : "help"};
     const std::vector<std::string> arguments{argv + std::min(2, argc),
                                              argv + argc};
     return jsonschema_main(program, command, arguments);
-  } catch (const sourcemeta::jsontoolkit::SchemaReferenceError &error) {
+  }
+  catch (const sourcemeta::jsontoolkit::SchemaReferenceError &error)
+  {
     std::cerr << "error: " << error.what() << "\n  " << error.id()
               << "\n    at schema location \"";
     sourcemeta::jsontoolkit::stringify(error.location(), std::cerr);
     std::cerr << "\"\n";
     return EXIT_FAILURE;
-  } catch (const sourcemeta::jsontoolkit::SchemaResolutionError &error) {
+  }
+  catch (const sourcemeta::jsontoolkit::SchemaResolutionError &error)
+  {
     std::cerr << "error: " << error.what() << "\n  at " << error.id() << "\n";
     return EXIT_FAILURE;
-  } catch (const sourcemeta::jsontoolkit::SchemaError &error) {
+  }
+  catch (const sourcemeta::jsontoolkit::SchemaError &error)
+  {
     std::cerr << "error: " << error.what() << "\n";
     return EXIT_FAILURE;
-  } catch (const sourcemeta::jsontoolkit::SchemaVocabularyError &error) {
+  }
+  catch (const sourcemeta::jsontoolkit::SchemaVocabularyError &error)
+  {
     std::cerr << "error: " << error.what() << "\n  " << error.uri()
               << "\n\nTo request support for it, please open an issue "
                  "at\nhttps://github.com/sourcemeta/jsonschema\n";
     return EXIT_FAILURE;
-  } catch (const sourcemeta::jsontoolkit::URIParseError &error) {
+  }
+  catch (const sourcemeta::jsontoolkit::URIParseError &error)
+  {
     std::cerr << "error: " << error.what() << " at column " << error.column()
               << "\n";
     return EXIT_FAILURE;
-  } catch (const sourcemeta::jsontoolkit::FileParseError &error) {
+  }
+  catch (const sourcemeta::jsontoolkit::FileParseError &error)
+  {
     std::cerr << "error: " << error.what() << " at line " << error.line()
               << " and column " << error.column() << "\n  "
               << std::filesystem::weakly_canonical(error.path()).string()
               << "\n";
     return EXIT_FAILURE;
-  } catch (const sourcemeta::jsontoolkit::ParseError &error) {
+  }
+  catch (const sourcemeta::jsontoolkit::ParseError &error)
+  {
     std::cerr << "error: " << error.what() << " at line " << error.line()
               << " and column " << error.column() << "\n";
     return EXIT_FAILURE;
-  } catch (const std::filesystem::filesystem_error &error) {
+  }
+  catch (const std::filesystem::filesystem_error &error)
+  {
     // See https://en.cppreference.com/w/cpp/error/errc
-    if (error.code() == std::errc::no_such_file_or_directory) {
+    if (error.code() == std::errc::no_such_file_or_directory)
+    {
       std::cerr << "error: " << error.code().message() << "\n  "
                 << std::filesystem::weakly_canonical(error.path1()).string()
                 << "\n";
-    } else if (error.code() == std::errc::is_a_directory) {
+    }
+    else if (error.code() == std::errc::is_a_directory)
+    {
       std::cerr << "error: The input was supposed to be a file but it is a "
                    "directory\n  "
                 << std::filesystem::weakly_canonical(error.path1()).string()
                 << "\n";
-    } else {
+    }
+    else
+    {
       std::cerr << "error: " << error.what() << "\n";
     }
 
     return EXIT_FAILURE;
-  } catch (const std::runtime_error &error) {
+  }
+  catch (const std::runtime_error &error)
+  {
     std::cerr << "error: " << error.what() << "\n";
     return EXIT_FAILURE;
-  } catch (const std::exception &error) {
+  }
+  catch (const std::exception &error)
+  {
     std::cerr << "unexpected error: " << error.what()
               << "\nPlease report it at "
               << "https://github.com/sourcemeta/jsonschema\n";
